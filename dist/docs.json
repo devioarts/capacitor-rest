@@ -1,0 +1,1298 @@
+{
+  "api": {
+    "name": "CapacitorRESTPlugin",
+    "slug": "capacitorrestplugin",
+    "docs": "",
+    "tags": [],
+    "methods": [
+      {
+        "name": "start",
+        "signature": "(options: StartOptions) => Promise<ServerInfo>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "StartOptions"
+          }
+        ],
+        "returns": "Promise<ServerInfo>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "ServerInfo",
+          "StartOptions"
+        ],
+        "slug": "start"
+      },
+      {
+        "name": "stop",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "stop"
+      },
+      {
+        "name": "getInfo",
+        "signature": "() => Promise<ServerInfo>",
+        "parameters": [],
+        "returns": "Promise<ServerInfo>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "ServerInfo"
+        ],
+        "slug": "getinfo"
+      },
+      {
+        "name": "getPluginPlatform",
+        "signature": "() => PluginPlatform",
+        "parameters": [],
+        "returns": "PluginPlatform",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginPlatform"
+        ],
+        "slug": "getpluginplatform"
+      },
+      {
+        "name": "registerRoute",
+        "signature": "(options: RouteOptions) => Promise<RouteInfo>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "RouteOptions"
+          }
+        ],
+        "returns": "Promise<RouteInfo>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "RouteInfo",
+          "RouteOptions"
+        ],
+        "slug": "registerroute"
+      },
+      {
+        "name": "unregisterRoute",
+        "signature": "(options: RemoveRouteOptions) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "RemoveRouteOptions"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "RemoveRouteOptions"
+        ],
+        "slug": "unregisterroute"
+      },
+      {
+        "name": "clearRoutes",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "clearroutes"
+      },
+      {
+        "name": "respond",
+        "signature": "(options: RespondOptions) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "RespondOptions"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "RespondOptions"
+        ],
+        "slug": "respond"
+      },
+      {
+        "name": "completeJob",
+        "signature": "(options: CompleteJobOptions) => Promise<JobInfo>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "CompleteJobOptions"
+          }
+        ],
+        "returns": "Promise<JobInfo>",
+        "tags": [],
+        "docs": "Rejects if `jobId` does not refer to a currently retained job. Unlike\nthe `GET /__jobs/:jobId` HTTP endpoint (which returns a plain\n`404 { error: string }` response), this rejects the returned promise -\nwrap calls in `try`/`catch`.",
+        "complexTypes": [
+          "JobInfo",
+          "CompleteJobOptions"
+        ],
+        "slug": "completejob"
+      },
+      {
+        "name": "failJob",
+        "signature": "(options: FailJobOptions) => Promise<JobInfo>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "FailJobOptions"
+          }
+        ],
+        "returns": "Promise<JobInfo>",
+        "tags": [],
+        "docs": "Rejects if `jobId` does not refer to a currently retained job. See the\n`completeJob()` note above.",
+        "complexTypes": [
+          "JobInfo",
+          "FailJobOptions"
+        ],
+        "slug": "failjob"
+      },
+      {
+        "name": "getJob",
+        "signature": "(options: JobIdOptions) => Promise<JobInfo>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "JobIdOptions"
+          }
+        ],
+        "returns": "Promise<JobInfo>",
+        "tags": [],
+        "docs": "Rejects if `jobId` does not refer to a currently retained job. See the\n`completeJob()` note above.",
+        "complexTypes": [
+          "JobInfo",
+          "JobIdOptions"
+        ],
+        "slug": "getjob"
+      },
+      {
+        "name": "listJobs",
+        "signature": "(options?: ListJobsOptions | undefined) => Promise<ListJobsResult>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "ListJobsOptions | undefined"
+          }
+        ],
+        "returns": "Promise<ListJobsResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "ListJobsResult",
+          "ListJobsOptions"
+        ],
+        "slug": "listjobs"
+      },
+      {
+        "name": "deleteJob",
+        "signature": "(options: JobIdOptions) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "JobIdOptions"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "JobIdOptions"
+        ],
+        "slug": "deletejob"
+      },
+      {
+        "name": "mockRequest",
+        "signature": "(options: MockRequestOptions) => Promise<RestResponse>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "MockRequestOptions"
+          }
+        ],
+        "returns": "Promise<RestResponse>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "RestResponse",
+          "MockRequestOptions"
+        ],
+        "slug": "mockrequest"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'request', listenerFunc: (event: RestRequest) => void) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'request'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "(event: RestRequest) => void"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "RestRequest"
+        ],
+        "slug": "addlistenerrequest-"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'started', listenerFunc: (event: RestServerEvent) => void) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'started'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "(event: RestServerEvent) => void"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "RestServerEvent"
+        ],
+        "slug": "addlistenerstarted-"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'stopped', listenerFunc: (event: RestServerEvent) => void) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'stopped'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "(event: RestServerEvent) => void"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "RestServerEvent"
+        ],
+        "slug": "addlistenerstopped-"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'error', listenerFunc: (event: RestServerErrorEvent) => void) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'error'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "(event: RestServerErrorEvent) => void"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "RestServerErrorEvent"
+        ],
+        "slug": "addlistenererror-"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'jobUpdated', listenerFunc: (event: JobUpdatedEvent) => void) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'jobUpdated'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "(event: JobUpdatedEvent) => void"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "JobUpdatedEvent"
+        ],
+        "slug": "addlistenerjobupdated-"
+      }
+    ],
+    "properties": []
+  },
+  "interfaces": [
+    {
+      "name": "ServerInfo",
+      "slug": "serverinfo",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "running",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean"
+        },
+        {
+          "name": "host",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "port",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number"
+        },
+        {
+          "name": "urls",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string[]"
+        },
+        {
+          "name": "mock",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "StartOptions",
+      "slug": "startoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "host",
+          "tags": [],
+          "docs": "Interface to bind. Use `127.0.0.1` for local-only access or `0.0.0.0`\nwhen other devices on the LAN should be able to connect.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "port",
+          "tags": [],
+          "docs": "TCP port to listen on. Pass `0` to let the platform pick a free port and\nread the selected value from `ServerInfo.port`. The web mock reports `0`\nbecause it does not open a socket.",
+          "complexTypes": [],
+          "type": "number"
+        },
+        {
+          "name": "cors",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "CorsOptions"
+          ],
+          "type": "CorsOptions"
+        },
+        {
+          "name": "auth",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "AuthOptions"
+          ],
+          "type": "AuthOptions"
+        },
+        {
+          "name": "maxBodySizeBytes",
+          "tags": [],
+          "docs": "Maximum accepted request body size in bytes. Requests over the limit return\n`413 Payload Too Large` before they reach the JavaScript handler.\n\nDefaults to 10 MiB.",
+          "complexTypes": [],
+          "type": "number | undefined"
+        },
+        {
+          "name": "requestTimeoutMs",
+          "tags": [],
+          "docs": "Maximum time a synchronous route waits for `respond()`.\nIf the JavaScript handler settles after this window, the HTTP client has\nalready received `504 Gateway Timeout` and the late response is ignored.\n\nDefaults to 30 seconds.",
+          "complexTypes": [],
+          "type": "number | undefined"
+        },
+        {
+          "name": "jobRetentionMs",
+          "tags": [],
+          "docs": "Time an unfinished async job remains readable from `/__jobs/:jobId`.\n\nDefaults to 5 minutes.",
+          "complexTypes": [],
+          "type": "number | undefined"
+        },
+        {
+          "name": "maxRetainedJobs",
+          "tags": [],
+          "docs": "Maximum number of retained jobs (any status). Completed, failed,\ncancelled, and expired jobs are not deleted automatically otherwise, so\nwithout this cap a client that never calls `deleteJob()`/\n`DELETE /__jobs/:jobId` would let retained jobs (including their\noriginal request bodies) grow without bound. Once the cap is exceeded,\nthe oldest jobs in a terminal state (`completed`, `failed`, `cancelled`,\n`expired`) are evicted first; jobs still `queued`/`running` are never\nevicted by this cap.\n\nDefaults to 1000.",
+          "complexTypes": [],
+          "type": "number | undefined"
+        }
+      ]
+    },
+    {
+      "name": "CorsOptions",
+      "slug": "corsoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "enabled",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean | undefined"
+        },
+        {
+          "name": "origins",
+          "tags": [],
+          "docs": "Allowed request origins. Defaults to `['*']` (any origin).\n\nWhen `allowCredentials` is `true` and `origins` is left at the default\n`['*']`, the server reflects back whatever `Origin` header the request\nsent (browsers reject a literal `*` alongside credentials), which is\nequivalent to allowing *any* website to make credentialed requests.\nAlways set an explicit allowlist here when `allowCredentials` is `true`.",
+          "complexTypes": [],
+          "type": "string[] | undefined"
+        },
+        {
+          "name": "methods",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "RestMethod"
+          ],
+          "type": "RestMethod[] | undefined"
+        },
+        {
+          "name": "headers",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string[] | undefined"
+        },
+        {
+          "name": "exposeHeaders",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string[] | undefined"
+        },
+        {
+          "name": "allowCredentials",
+          "tags": [],
+          "docs": "Sends `Access-Control-Allow-Credentials: true` and, when `origins` is\nleft at the default `['*']`, reflects the request's `Origin` back\nverbatim instead of sending a literal `*` (required by browsers for\ncredentialed requests). See the `origins` documentation above -\npair this with an explicit `origins` allowlist, otherwise any site can\nmake credentialed requests against this server.",
+          "complexTypes": [],
+          "type": "boolean | undefined"
+        },
+        {
+          "name": "maxAgeSeconds",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number | undefined"
+        }
+      ]
+    },
+    {
+      "name": "BearerAuthOptions",
+      "slug": "bearerauthoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "type",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "'bearer'"
+        },
+        {
+          "name": "token",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "NoAuthOptions",
+      "slug": "noauthoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "type",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "'none'"
+        }
+      ]
+    },
+    {
+      "name": "RouteInfo",
+      "slug": "routeinfo",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "mode",
+          "tags": [],
+          "docs": "`sync` waits for `respond()`. `async` immediately returns `202 Accepted`\nand completes through `completeJob()` or `failJob()`.",
+          "complexTypes": [
+            "RouteMode"
+          ],
+          "type": "RouteMode"
+        }
+      ]
+    },
+    {
+      "name": "RouteOptions",
+      "slug": "routeoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "method",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "RestMethod"
+          ],
+          "type": "RestMethod"
+        },
+        {
+          "name": "path",
+          "tags": [],
+          "docs": "Route pattern. Static segments, `:params`, and a trailing `*` wildcard are\nsupported, for example `/orders/:id` or `/files/*`.",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "mode",
+          "tags": [],
+          "docs": "`sync` waits for `respond()`. `async` immediately returns `202 Accepted`\nand completes through `completeJob()` or `failJob()`.",
+          "complexTypes": [
+            "RouteMode"
+          ],
+          "type": "RouteMode"
+        },
+        {
+          "name": "timeoutMs",
+          "tags": [],
+          "docs": "Per-route override for `StartOptions.requestTimeoutMs` on synchronous\nroutes.",
+          "complexTypes": [],
+          "type": "number | undefined"
+        }
+      ]
+    },
+    {
+      "name": "RemoveRouteOptions",
+      "slug": "removerouteoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "method",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "RestMethod"
+          ],
+          "type": "RestMethod"
+        },
+        {
+          "name": "path",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "RespondOptions",
+      "slug": "respondoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "requestId",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "JobInfo",
+      "slug": "jobinfo",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "jobId",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "JobStatus"
+          ],
+          "type": "JobStatus"
+        },
+        {
+          "name": "createdAt",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "updatedAt",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "request",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "RestRequest"
+          ],
+          "type": "RestRequest"
+        },
+        {
+          "name": "response",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "RestResponse"
+          ],
+          "type": "RestResponse"
+        },
+        {
+          "name": "error",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "RestRequest",
+      "slug": "restrequest",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "id",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "jobId",
+          "tags": [],
+          "docs": "Present only for async routes. Use it with `completeJob()` or `failJob()`.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "method",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "RestMethod"
+          ],
+          "type": "RestMethod"
+        },
+        {
+          "name": "path",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "route",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "params",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Record"
+          ],
+          "type": "Record<string, string>"
+        },
+        {
+          "name": "query",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Record"
+          ],
+          "type": "Record<string, string | string[]>"
+        },
+        {
+          "name": "headers",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Record"
+          ],
+          "type": "Record<string, string>"
+        },
+        {
+          "name": "body",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "unknown"
+        },
+        {
+          "name": "bodyType",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BodyType"
+          ],
+          "type": "BodyType"
+        },
+        {
+          "name": "remoteAddress",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "receivedAt",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "RestResponse",
+      "slug": "restresponse",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "status",
+          "tags": [],
+          "docs": "HTTP status code to send to the client.",
+          "complexTypes": [],
+          "type": "number"
+        },
+        {
+          "name": "headers",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Record"
+          ],
+          "type": "Record<string, string>"
+        },
+        {
+          "name": "body",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "unknown"
+        },
+        {
+          "name": "bodyType",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BodyType"
+          ],
+          "type": "BodyType"
+        }
+      ]
+    },
+    {
+      "name": "CompleteJobOptions",
+      "slug": "completejoboptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "response",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "RestResponse"
+          ],
+          "type": "RestResponse"
+        }
+      ]
+    },
+    {
+      "name": "FailJobOptions",
+      "slug": "failjoboptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "error",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Extract",
+            "JobStatus"
+          ],
+          "type": "Extract<JobStatus, 'failed' | 'cancelled'>"
+        }
+      ]
+    },
+    {
+      "name": "JobIdOptions",
+      "slug": "jobidoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "jobId",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "ListJobsResult",
+      "slug": "listjobsresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "jobs",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "JobInfo"
+          ],
+          "type": "JobInfo[]"
+        }
+      ]
+    },
+    {
+      "name": "ListJobsOptions",
+      "slug": "listjobsoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "status",
+          "tags": [],
+          "docs": "Optional status filter. Omit it to return every retained job.",
+          "complexTypes": [
+            "JobStatus"
+          ],
+          "type": "JobStatus"
+        }
+      ]
+    },
+    {
+      "name": "MockRequestOptions",
+      "slug": "mockrequestoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "method",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "RestMethod"
+          ],
+          "type": "RestMethod"
+        },
+        {
+          "name": "path",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "headers",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Record"
+          ],
+          "type": "Record<string, string>"
+        },
+        {
+          "name": "body",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "unknown"
+        },
+        {
+          "name": "bodyType",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BodyType"
+          ],
+          "type": "BodyType"
+        },
+        {
+          "name": "remoteAddress",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "PluginListenerHandle",
+      "slug": "pluginlistenerhandle",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "remove",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "() => Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "RestServerEvent",
+      "slug": "restserverevent",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "info",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "ServerInfo"
+          ],
+          "type": "ServerInfo"
+        }
+      ]
+    },
+    {
+      "name": "RestServerErrorEvent",
+      "slug": "restservererrorevent",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "message",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "JobUpdatedEvent",
+      "slug": "jobupdatedevent",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "job",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "JobInfo"
+          ],
+          "type": "JobInfo"
+        }
+      ]
+    }
+  ],
+  "enums": [],
+  "typeAliases": [
+    {
+      "name": "RestMethod",
+      "slug": "restmethod",
+      "docs": "",
+      "types": [
+        {
+          "text": "'GET'",
+          "complexTypes": []
+        },
+        {
+          "text": "'POST'",
+          "complexTypes": []
+        },
+        {
+          "text": "'PUT'",
+          "complexTypes": []
+        },
+        {
+          "text": "'PATCH'",
+          "complexTypes": []
+        },
+        {
+          "text": "'DELETE'",
+          "complexTypes": []
+        },
+        {
+          "text": "'HEAD'",
+          "complexTypes": []
+        },
+        {
+          "text": "'OPTIONS'",
+          "complexTypes": []
+        }
+      ]
+    },
+    {
+      "name": "AuthOptions",
+      "slug": "authoptions",
+      "docs": "",
+      "types": [
+        {
+          "text": "BearerAuthOptions",
+          "complexTypes": [
+            "BearerAuthOptions"
+          ]
+        },
+        {
+          "text": "NoAuthOptions",
+          "complexTypes": [
+            "NoAuthOptions"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PluginPlatform",
+      "slug": "pluginplatform",
+      "docs": "The bridge implementation that actually handled the call - the cheapest way to confirm\nwhether a given platform is running its native server or falling back to the web mock.",
+      "types": [
+        {
+          "text": "'ios'",
+          "complexTypes": []
+        },
+        {
+          "text": "'android'",
+          "complexTypes": []
+        },
+        {
+          "text": "'electron'",
+          "complexTypes": []
+        },
+        {
+          "text": "'web'",
+          "complexTypes": []
+        }
+      ]
+    },
+    {
+      "name": "RouteMode",
+      "slug": "routemode",
+      "docs": "",
+      "types": [
+        {
+          "text": "'sync'",
+          "complexTypes": []
+        },
+        {
+          "text": "'async'",
+          "complexTypes": []
+        }
+      ]
+    },
+    {
+      "name": "JobStatus",
+      "slug": "jobstatus",
+      "docs": "",
+      "types": [
+        {
+          "text": "'queued'",
+          "complexTypes": []
+        },
+        {
+          "text": "'running'",
+          "complexTypes": []
+        },
+        {
+          "text": "'completed'",
+          "complexTypes": []
+        },
+        {
+          "text": "'failed'",
+          "complexTypes": []
+        },
+        {
+          "text": "'cancelled'",
+          "complexTypes": []
+        },
+        {
+          "text": "'expired'",
+          "complexTypes": []
+        }
+      ]
+    },
+    {
+      "name": "Record",
+      "slug": "record",
+      "docs": "Construct a type with a set of properties K of type T",
+      "types": [
+        {
+          "text": "{\r\n    [P in K]: T;\r\n}",
+          "complexTypes": [
+            "K",
+            "T"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BodyType",
+      "slug": "bodytype",
+      "docs": "",
+      "types": [
+        {
+          "text": "'empty'",
+          "complexTypes": []
+        },
+        {
+          "text": "'json'",
+          "complexTypes": []
+        },
+        {
+          "text": "'text'",
+          "complexTypes": []
+        },
+        {
+          "text": "'binary'",
+          "complexTypes": []
+        },
+        {
+          "text": "'form'",
+          "complexTypes": []
+        },
+        {
+          "text": "'multipart'",
+          "complexTypes": []
+        }
+      ]
+    },
+    {
+      "name": "Extract",
+      "slug": "extract",
+      "docs": "Extract from T those types that are assignable to U",
+      "types": [
+        {
+          "text": "T extends U ? T : never",
+          "complexTypes": [
+            "T",
+            "U"
+          ]
+        }
+      ]
+    }
+  ],
+  "pluginConfigs": []
+}

@@ -6,10 +6,32 @@
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
   "unpkg": "dist/plugin.js",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/plugin.cjs.js"
+    },
+    "./electron": {
+      "types": "./electron/types-public/index.d.ts",
+      "require": "./electron/dist/plugin.cjs.js",
+      "default": "./electron/dist/plugin.cjs.js"
+    },
+    "./electron/settings": {
+      "require": "./electron/dist/plugin-settings.js",
+      "default": "./electron/dist/plugin-settings.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
+    "docs/",
+    "README.md",
     "android/src/main/",
     "android/build.gradle",
+    "android/consumer-rules.pro",
     "dist/",
+    "electron/dist",
+    "electron/types-public",
     "ios/Sources",
     "ios/Tests",
     "Package.swift",
@@ -30,18 +52,24 @@
     "native"
   ],
   "scripts": {
-    "verify": "npm run verify:ios && npm run verify:android && npm run verify:web",
-    "verify:ios": "xcodebuild -scheme DevioartsCapacitorRest -destination generic/platform=iOS",
+    "verify": "npm run test:ts && npm run verify:ios && npm run verify:android && npm run verify:web && npm run verify:electron",
+    "verify:ios": "xcodebuild -scheme DevioartsCapacitorRest -destination generic/platform=iOS && npm run test:ios",
     "verify:android": "cd android && ./gradlew clean build test && cd ..",
     "verify:web": "npm run build",
+    "verify:electron": "npm run build:electron",
+    "test": "npm run test:ts && npm run test:android && npm run test:ios",
+    "test:ts": "vitest run",
+    "test:android": "cd android && ./gradlew test && cd ..",
+    "test:ios": "DEVICE_ID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print $2; exit }') && xcodebuild test -scheme DevioartsCapacitorRest -destination \"id=$DEVICE_ID\" -quiet",
     "lint": "npm run eslint && npm run prettier -- --check && npm run swiftlint -- lint",
     "fmt": "npm run eslint -- --fix && npm run prettier -- --write && npm run swiftlint -- --fix --format",
-    "eslint": "eslint . --ext ts",
+    "eslint": "eslint .",
     "prettier": "prettier \"**/*.{css,html,ts,js,java}\" --plugin=prettier-plugin-java",
     "swiftlint": "node-swiftlint",
     "docgen": "docgen --api CapacitorRESTPlugin --output-readme README.md --output-json dist/docs.json",
-    "build": "npm run clean && npm run docgen && tsc && rollup -c rollup.config.mjs",
-    "clean": "rimraf ./dist",
+    "build": "npm run clean && npm run docgen && tsc && rollup -c rollup.config.mjs && npm run build:electron",
+    "build:electron": "tsc --project electron/tsconfig.json && rollup -c electron/rollup.config.mjs && rimraf ./electron/build",
+    "clean": "rimraf ./dist ./electron/dist ./electron/build",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build"
   },
@@ -50,31 +78,34 @@
     "@capacitor/core": "^8.0.0",
     "@capacitor/docgen": "^0.3.1",
     "@capacitor/ios": "^8.0.0",
-    "@ionic/eslint-config": "^0.4.0",
     "@ionic/prettier-config": "^4.0.0",
     "@ionic/swiftlint-config": "^2.0.0",
-    "eslint": "^8.57.1",
-    "prettier": "^3.6.2",
-    "prettier-plugin-java": "^2.7.7",
+    "@types/node": "^24.0.0",
+    "electron": "^43.0.0",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.0",
+    "prettier-plugin-java": "^2.10.0",
     "rimraf": "^6.1.0",
-    "rollup": "^4.53.2",
+    "rollup": "^4.62.0",
     "swiftlint": "^2.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.0"
   },
   "peerDependencies": {
     "@capacitor/core": ">=8.0.0"
   },
   "prettier": "@ionic/prettier-config",
-  "swiftlint": "@ionic/swiftlint-config",
-  "eslintConfig": {
-    "extends": "@ionic/eslint-config/recommended"
-  },
   "capacitor": {
     "ios": {
       "src": "ios"
     },
     "android": {
       "src": "android"
+    },
+    "electron": {
+      "src": "electron"
     }
   }
 }

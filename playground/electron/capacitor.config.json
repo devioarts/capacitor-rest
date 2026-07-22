@@ -1,0 +1,5 @@
+{
+  "appId": "com.devioarts.capacitor.rest.playground",
+  "appName": "cap-rest-playground",
+  "webDir": "dist"
+}

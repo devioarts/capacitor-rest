@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">cap-rest-playground</string>
+    <string name="title_activity_main">cap-rest-playground</string>
+    <string name="package_name">com.devioarts.capacitor.rest.playground</string>
+    <string name="custom_url_scheme">com.devioarts.capacitor.rest.playground</string>
+</resources>
