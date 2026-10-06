@@ -1,0 +1,9 @@
+{
+  "name": "capacitor-rest-lint",
+  "private": true,
+  "description": "typescript-eslint does not support TypeScript 7 yet, so it lives here with its own TypeScript 6.",
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.63.0"
+  }
+}

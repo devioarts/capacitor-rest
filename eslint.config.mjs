@@ -1,6 +1,9 @@
 // @ts-check
-import tseslint from 'typescript-eslint';
+import { createRequire } from 'node:module';
 import eslintConfigPrettier from 'eslint-config-prettier';
+
+// typescript-eslint is installed in ./lint with TypeScript 6 (it does not support TypeScript 7 yet).
+const tseslint = createRequire(new URL('./lint/', import.meta.url))('typescript-eslint');
 
 export default tseslint.config(
   {
@@ -9,6 +12,7 @@ export default tseslint.config(
       'electron/dist/',
       'electron/build/',
       'node_modules/',
+      'lint/',
       'build/',
       '.build/',
       'playground/',
