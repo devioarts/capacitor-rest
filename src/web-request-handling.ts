@@ -29,6 +29,15 @@ export function matchRoute(
   return undefined;
 }
 
+/** Like requireJob(), but also rejects jobs that already reached a terminal state. */
+export function requireOpenJob(jobs: Map<string, JobInfo>, jobId: string): JobInfo {
+  const job = requireJob(jobs, jobId);
+  if (job.status !== 'queued' && job.status !== 'running') {
+    throw new Error(`Job ${jobId} is already ${job.status}`);
+  }
+  return job;
+}
+
 export function requireJob(jobs: Map<string, JobInfo>, jobId: string): JobInfo {
   const job = jobs.get(jobId);
   if (!job) {

@@ -45,6 +45,7 @@ import {
   enforceJobRetentionCap,
   matchRoute,
   requireJob,
+  requireOpenJob,
   trySystemRoute,
   withCors,
 } from './web-request-handling';
@@ -130,7 +131,7 @@ export class CapacitorRESTWeb extends WebPlugin implements CapacitorRESTPlugin {
   }
 
   async completeJob(options: CompleteJobOptions): Promise<JobInfo> {
-    const job = requireJob(this.jobs, options.jobId);
+    const job = requireOpenJob(this.jobs, options.jobId);
     const updated = {
       ...job,
       status: 'completed' as const,
@@ -144,7 +145,10 @@ export class CapacitorRESTWeb extends WebPlugin implements CapacitorRESTPlugin {
   }
 
   async failJob(options: FailJobOptions): Promise<JobInfo> {
-    const job = requireJob(this.jobs, options.jobId);
+    const job = requireOpenJob(this.jobs, options.jobId);
+    if (options.status !== undefined && options.status !== 'failed' && options.status !== 'cancelled') {
+      throw new Error("status must be 'failed' or 'cancelled'");
+    }
     const updated = {
       ...job,
       status: options.status ?? ('failed' as const),

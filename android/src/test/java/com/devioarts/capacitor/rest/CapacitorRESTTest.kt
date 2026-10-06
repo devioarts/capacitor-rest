@@ -239,4 +239,69 @@ class CapacitorRESTTest {
             connection.disconnect()
         }
     }
+
+    @Test
+    fun `a finished job cannot be completed or failed again`() =
+        runTest {
+            startServer()
+            rest.registerRoute(JSObject().put("method", "POST").put("path", "/imports").put("mode", "async"))
+            var jobId: String? = null
+            bridge.onRequest = { request -> jobId = request.getString("jobId") }
+            rest.mockRequest(JSObject().put("method", "POST").put("path", "/imports"))
+
+            rest.failJob(JSObject().put("jobId", jobId).put("status", "cancelled").put("error", "stop"))
+            val response = JSObject().put("status", 200)
+            assertThrows(Exception::class.java) {
+                rest.completeJob(JSObject().put("jobId", jobId).put("response", response))
+            }
+            assertThrows(Exception::class.java) { rest.failJob(JSObject().put("jobId", jobId).put("error", "again")) }
+            assertEquals("cancelled", rest.getJob(JSObject().put("jobId", jobId)).getString("status"))
+        }
+
+    @Test
+    fun `failJob rejects a status other than failed or cancelled`() =
+        runTest {
+            startServer()
+            rest.registerRoute(JSObject().put("method", "POST").put("path", "/imports").put("mode", "async"))
+            var jobId: String? = null
+            bridge.onRequest = { request -> jobId = request.getString("jobId") }
+            rest.mockRequest(JSObject().put("method", "POST").put("path", "/imports"))
+
+            assertThrows(Exception::class.java) {
+                rest.failJob(JSObject().put("jobId", jobId).put("status", "completed").put("error", "x"))
+            }
+        }
+
+    @Test
+    fun `stop answers an in-flight request with 503 without waiting for the grace period`() {
+        val info = startServer()
+        rest.registerRoute(JSObject().put("method", "GET").put("path", "/slow"))
+        val port = info.getInteger("port")
+        var code = -1
+        val client =
+            Thread {
+                val connection = URL("http://127.0.0.1:$port/slow").openConnection() as HttpURLConnection
+                try {
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 10000
+                    code = connection.responseCode
+                } finally {
+                    connection.disconnect()
+                }
+            }
+        client.start()
+        val deadline = System.currentTimeMillis() + 5000
+        while (rest.pending.isEmpty() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+        }
+        assertFalse(rest.pending.isEmpty())
+
+        val startedAt = System.currentTimeMillis()
+        rest.stop()
+        val elapsed = System.currentTimeMillis() - startedAt
+        client.join(5000)
+
+        assertEquals(503, code)
+        assertTrue(elapsed < 900, "stop() took ${elapsed}ms")
+    }
 }

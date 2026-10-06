@@ -27,6 +27,8 @@ class FakeWebContents {
     }
   }
 
+  on(): void {}
+
   isDestroyed(): boolean {
     return this.destroyed;
   }

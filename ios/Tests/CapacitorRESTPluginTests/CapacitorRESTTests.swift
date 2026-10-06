@@ -185,6 +185,70 @@ class CapacitorRESTTests: XCTestCase {
         XCTAssertEqual(contentLengthLines.count, 1)
     }
 
+    func testAFinishedJobCannotBeCompletedOrFailedAgain() throws {
+        try startServer()
+        _ = try implementation.registerRoute(options: ["method": "POST", "path": "/imports", "mode": "async"])
+        var jobId: String?
+        bridge.onRequest = { request in jobId = request["jobId"] as? String }
+        _ = try mockRequest(["method": "POST", "path": "/imports"])
+
+        _ = try implementation.failJob(options: ["jobId": jobId ?? "", "status": "cancelled", "error": "stop"])
+        XCTAssertThrowsError(try implementation.completeJob(options: ["jobId": jobId ?? "", "response": ["status": 200]]))
+        XCTAssertThrowsError(try implementation.failJob(options: ["jobId": jobId ?? "", "error": "again"]))
+        XCTAssertEqual(try implementation.getJob(options: ["jobId": jobId ?? ""])["status"] as? String, "cancelled")
+    }
+
+    func testFailJobRejectsAStatusOtherThanFailedOrCancelled() throws {
+        try startServer()
+        _ = try implementation.registerRoute(options: ["method": "POST", "path": "/imports", "mode": "async"])
+        var jobId: String?
+        bridge.onRequest = { request in jobId = request["jobId"] as? String }
+        _ = try mockRequest(["method": "POST", "path": "/imports"])
+
+        XCTAssertThrowsError(try implementation.failJob(options: ["jobId": jobId ?? "", "status": "completed", "error": "x"]))
+    }
+
+    func testHandlerSuppliedContentLengthIsReplacedByTheRealBodyLength() throws {
+        let info = try startServer()
+        _ = try implementation.registerRoute(options: ["method": "GET", "path": "/ping"])
+        bridge.onRequest = { [weak self] request in
+            try? self?.implementation.respond(options: [
+                "requestId": request["id"] as? String ?? "",
+                "status": 200,
+                "headers": ["content-length": "3"],
+                "bodyType": "text",
+                "body": "hello"
+            ])
+        }
+
+        let rawResponse = try sendRawHTTPGet(port: info["port"] as? Int ?? 0, path: "/ping")
+        let headerLines = rawResponse.components(separatedBy: "\r\n\r\n")[0].components(separatedBy: "\r\n")
+        let contentLengths = headerLines.filter { $0.lowercased().hasPrefix("content-length:") }
+        XCTAssertEqual(contentLengths.count, 1)
+        XCTAssertTrue(contentLengths[0].hasSuffix(" 5"))
+        XCTAssertTrue(rawResponse.hasSuffix("hello"))
+    }
+
+    func testStopAnswersAnInFlightRequestWith503() throws {
+        let info = try startServer()
+        _ = try implementation.registerRoute(options: ["method": "GET", "path": "/slow"])
+        let requestArrived = expectation(description: "request reached JS")
+        bridge.onRequest = { _ in requestArrived.fulfill() }
+
+        let port = info["port"] as? Int ?? 0
+        var raw = ""
+        let finished = expectation(description: "client finished")
+        DispatchQueue.global().async {
+            raw = (try? self.sendRawHTTPGet(port: port, path: "/slow")) ?? ""
+            finished.fulfill()
+        }
+        wait(for: [requestArrived], timeout: 5)
+        implementation.stop()
+        wait(for: [finished], timeout: 5)
+        XCTAssertTrue(raw.hasPrefix("HTTP/1.1 503") || raw.isEmpty, "unexpected response: \(raw)")
+        XCTAssertEqual(implementation.getInfo()["running"] as? Bool, false)
+    }
+
     /// Opens a raw TCP socket and issues a plain HTTP/1.1 GET, returning the raw response text.
     /// `URLSession`/`HTTPURLResponse` normalize headers into a `Dictionary`, which cannot
     /// represent a duplicated header name - a raw socket read is the only way to see that.

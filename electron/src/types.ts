@@ -104,6 +104,8 @@ export const DEFAULT_TIMEOUT_MS = 30_000;
 export const DEFAULT_JOB_RETENTION_MS = 300_000;
 export const DEFAULT_MAX_BODY_SIZE_BYTES = 10 * 1024 * 1024;
 export const DEFAULT_MAX_RETAINED_JOBS = 1000;
+/** How long stop() lets busy connections finish before closing them forcibly. */
+export const STOP_GRACE_MS = 1000;
 
 export const TERMINAL_JOB_STATUSES: ReadonlySet<JobStatus> = new Set(['completed', 'failed', 'cancelled', 'expired']);
 

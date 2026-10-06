@@ -21,7 +21,7 @@ import {
   withCors,
   writeResponse,
 } from './helpers';
-import { authorize, matchRoute, requireJob, trySystemRoute } from './request-handling';
+import { authorize, matchRoute, requireJob, requireOpenJob, trySystemRoute } from './request-handling';
 import {
   BodyTooLargeError,
   DEFAULT_HOST,
@@ -30,6 +30,7 @@ import {
   DEFAULT_MAX_RETAINED_JOBS,
   DEFAULT_TIMEOUT_MS,
   PluginPlatform,
+  STOP_GRACE_MS,
   ServerStoppedError,
   TERMINAL_JOB_STATUSES,
 } from './types';
@@ -51,8 +52,10 @@ import type {
 } from './types';
 
 export class CapacitorREST {
-  private webContents: WebContents | null = null;
-  private listenerCounts = new Map<string, number>();
+  // Listener counts are tracked per WebContents: with several windows each one registers its
+  // own listeners, and a renderer reload (which does not destroy the WebContents) drops all of
+  // its JS listeners without sending any `event-remove-*` message.
+  private listeners = new Map<WebContents, Map<string, number>>();
   private server?: Server;
   private options?: Required<
     Pick<StartOptions, 'host' | 'port' | 'requestTimeoutMs' | 'jobRetentionMs' | 'maxBodySizeBytes' | 'maxRetainedJobs'>
@@ -64,15 +67,16 @@ export class CapacitorREST {
 
   constructor() {
     ipcMain.on('event-add-CapacitorREST', (event, type: unknown) => {
-      this.attachWebContents(event.sender);
+      const counts = this.attachWebContents(event.sender);
       const eventType = String(type);
-      this.listenerCounts.set(eventType, (this.listenerCounts.get(eventType) ?? 0) + 1);
+      counts.set(eventType, (counts.get(eventType) ?? 0) + 1);
     });
 
     for (const eventName of ['request', 'started', 'stopped', 'error', 'jobUpdated']) {
-      ipcMain.on(`event-remove-CapacitorREST-${eventName}`, () => {
-        const count = (this.listenerCounts.get(eventName) ?? 1) - 1;
-        this.listenerCounts.set(eventName, Math.max(0, count));
+      ipcMain.on(`event-remove-CapacitorREST-${eventName}`, (event) => {
+        const counts = this.listeners.get(event.sender);
+        if (!counts) return;
+        counts.set(eventName, Math.max(0, (counts.get(eventName) ?? 1) - 1));
       });
     }
   }
@@ -99,7 +103,7 @@ export class CapacitorREST {
       maxRetainedJobs: options.maxRetainedJobs ?? DEFAULT_MAX_RETAINED_JOBS,
     };
 
-    this.server = createServer((request, response) => {
+    const server = createServer((request, response) => {
       // Without these, a client aborting mid-request (or another socket-level failure) emits
       // an unhandled 'error' event on the request/response, which Node turns into an uncaught
       // exception - risking a crash of the whole Electron main process rather than just this
@@ -124,8 +128,18 @@ export class CapacitorREST {
     });
 
     await new Promise<void>((resolve, reject) => {
-      this.server?.once('error', reject);
-      this.server?.listen(this.options?.port, this.options?.host, () => resolve());
+      const onListenError = (error: Error) => reject(error);
+      server.once('error', onListenError);
+      server.listen(this.options?.port, this.options?.host, () => {
+        server.off('error', onListenError);
+        resolve();
+      });
+    });
+    // Only publish the server once it is really listening, so a failed start() (e.g.
+    // EADDRINUSE) never leaves getInfo() reporting `running: true`.
+    this.server = server;
+    server.on('error', (error) => {
+      this.emit('error', { message: error.message });
     });
 
     const info = await this.getInfo();
@@ -149,12 +163,23 @@ export class CapacitorREST {
     this.server = undefined;
 
     if (server) {
-      await new Promise<void>((resolve, reject) => {
+      // close() only resolves once every connection has ended. Idle keep-alive connections are
+      // dropped immediately; connections still busy (e.g. a slow upload) get a short grace
+      // period to finish writing their 503 and are then closed forcibly, so stop() can never
+      // hang on a single stuck client.
+      const closed = new Promise<void>((resolve, reject) => {
         server.close((error) => {
           if (error) reject(error);
           else resolve();
         });
       });
+      server.closeIdleConnections();
+      const force = setTimeout(() => server.closeAllConnections(), STOP_GRACE_MS);
+      try {
+        await closed;
+      } finally {
+        clearTimeout(force);
+      }
     }
 
     this.emit('stopped', { info: await this.getInfo() });
@@ -198,13 +223,23 @@ export class CapacitorREST {
     if (!pending) {
       throw new Error(`Request ${options.requestId} is not pending`);
     }
+    // Normalize first: if the response is malformed this throws while the request is still
+    // pending, so the caller can retry and the request is not left hanging with no timer.
+    let response: RestResponse;
+    try {
+      response = normalizeResponse(options);
+    } catch (error) {
+      throw new Error(
+        `Invalid response for request ${options.requestId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     clearTimeout(pending.timeout);
     this.pending.delete(options.requestId);
-    pending.resolve(normalizeResponse(options));
+    pending.resolve(response);
   }
 
   async completeJob(options: { jobId: string; response: RestResponse }): Promise<JobInfo> {
-    const job = requireJob(this.jobs, options.jobId);
+    const job = requireOpenJob(this.jobs, options.jobId);
     const updated = {
       ...job,
       status: 'completed' as const,
@@ -222,7 +257,10 @@ export class CapacitorREST {
     error: string;
     status?: Extract<JobStatus, 'failed' | 'cancelled'>;
   }): Promise<JobInfo> {
-    const job = requireJob(this.jobs, options.jobId);
+    const job = requireOpenJob(this.jobs, options.jobId);
+    if (options.status !== undefined && options.status !== 'failed' && options.status !== 'cancelled') {
+      throw new Error("status must be 'failed' or 'cancelled'");
+    }
     const updated = {
       ...job,
       status: options.status ?? ('failed' as const),
@@ -278,7 +316,7 @@ export class CapacitorREST {
     bodyType?: BodyType;
     remoteAddress?: string;
   }): Promise<RestResponse> {
-    if (!this.options) {
+    if (!this.server || !this.options) {
       throw new Error('Server is not running');
     }
 
@@ -362,22 +400,28 @@ export class CapacitorREST {
     }
   }
 
-  private attachWebContents(webContents: WebContents): void {
-    if (this.webContents === webContents) return;
-    this.webContents = webContents;
+  private attachWebContents(webContents: WebContents): Map<string, number> {
+    const existing = this.listeners.get(webContents);
+    if (existing) return existing;
+    const counts = new Map<string, number>();
+    this.listeners.set(webContents, counts);
     webContents.once('destroyed', () => {
-      if (this.webContents === webContents) {
-        this.webContents = null;
-        this.listenerCounts.clear();
-      }
+      this.listeners.delete(webContents);
     });
+    // A main-frame navigation or reload discards the page's JS listeners without telling us,
+    // so forget the old counts - the new page registers its own via `event-add-*`.
+    webContents.on('did-navigate', () => {
+      counts.clear();
+    });
+    return counts;
   }
 
   private emit(eventName: string, payload: object): void {
-    if ((this.listenerCounts.get(eventName) ?? 0) <= 0) return;
-    const webContents = this.webContents;
-    if (!webContents || webContents.isDestroyed()) return;
-    webContents.send(`event-CapacitorREST-${eventName}`, payload);
+    for (const [webContents, counts] of this.listeners) {
+      if ((counts.get(eventName) ?? 0) <= 0) continue;
+      if (webContents.isDestroyed()) continue;
+      webContents.send(`event-CapacitorREST-${eventName}`, payload);
+    }
   }
 
   private async handleHttpRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -408,7 +452,7 @@ export class CapacitorREST {
       request: { ...request, jobId },
     };
     this.jobs.set(jobId, job);
-    setTimeout(() => {
+    const expiryTimer = setTimeout(() => {
       const current = this.jobs.get(jobId);
       if (current && (current.status === 'queued' || current.status === 'running')) {
         const updated = { ...current, status: 'expired' as const, updatedAt: new Date().toISOString() };
@@ -417,6 +461,7 @@ export class CapacitorREST {
         this.emit('jobUpdated', { job: updated });
       }
     }, this.options?.jobRetentionMs ?? DEFAULT_JOB_RETENTION_MS);
+    expiryTimer.unref();
     return job;
   }
 }

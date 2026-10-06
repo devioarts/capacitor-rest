@@ -18,6 +18,10 @@ final class CapacitorREST {
     var pending: [String: PendingResponse] = [:]
     var jobs: [String: JobRecord] = [:]
     let lock = NSLock()
+    // start()/stop() block on NIO shutdown and must not interleave (start() calls stop() itself,
+    // hence recursive): two overlapping calls could otherwise leave a bound socket or event-loop
+    // threads that nothing references any more.
+    private let lifecycleLock = NSRecursiveLock()
 
     // `channel`/`group` are written by start()/stop() and read (existence-checked) from
     // mockRequest()/getInfo(), which can run concurrently with a stop() in progress. Guarded by
@@ -69,9 +73,13 @@ final class CapacitorREST {
     }
 
     func start(options data: JSObject) throws -> JSObject {
+        lifecycleLock.lock()
+        defer { lifecycleLock.unlock() }
         stop()
         options = try ServerOptions(data)
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+        // Published before binding so that a concurrent teardown can always find and shut it down.
+        self.group = group
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.backlog, value: 256)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
@@ -90,9 +98,9 @@ final class CapacitorREST {
             channel = try bootstrap.bind(host: options.host, port: options.port).wait()
         } catch {
             try? group.syncShutdownGracefully()
+            self.group = nil
             throw error
         }
-        self.group = group
         let info = getInfo()
         bridge?.emit("started", ["info": info])
         return info
@@ -111,6 +119,8 @@ final class CapacitorREST {
     }
 
     func stop() {
+        lifecycleLock.lock()
+        defer { lifecycleLock.unlock() }
         lock.lock()
         let pendingResponses = pending
         pending.removeAll()
@@ -138,8 +148,18 @@ final class CapacitorREST {
         bridge?.emit("stopped", ["info": getInfo()])
     }
 
+    /// Called when the app returns to the foreground. iOS can tear down listening sockets while the
+    /// app is suspended; if that happened, report it instead of claiming the server is still up.
+    func reconcileAfterForeground() {
+        guard let current = channel, !current.isActive else {
+            return
+        }
+        stop()
+        bridge?.emit("error", ["message": "The server socket was closed while the app was in the background. Call start() again."])
+    }
+
     func getInfo() -> JSObject {
-        let running = channel != nil
+        let running = channel?.isActive ?? false
         let port = channel?.localAddress?.port ?? options.port
         return [
             "running": running,
@@ -225,6 +245,10 @@ final class CapacitorREST {
             lock.unlock()
             throw RestError.message("Job \(jobId) was not found")
         }
+        guard job.status == "queued" || job.status == "running" else {
+            lock.unlock()
+            throw RestError.message("Job \(jobId) is already \(job.status)")
+        }
         let updated = job.completed(with: ResponsePayload(responseData))
         jobs[jobId] = updated
         enforceJobRetentionCapLocked()
@@ -237,13 +261,21 @@ final class CapacitorREST {
         guard let jobId = data["jobId"] as? String else {
             throw RestError.message("jobId is required")
         }
+        let status = data["status"] as? String ?? "failed"
+        guard status == "failed" || status == "cancelled" else {
+            throw RestError.message("status must be 'failed' or 'cancelled'")
+        }
         lock.lock()
         guard let job = jobs[jobId] else {
             lock.unlock()
             throw RestError.message("Job \(jobId) was not found")
         }
+        guard job.status == "queued" || job.status == "running" else {
+            lock.unlock()
+            throw RestError.message("Job \(jobId) is already \(job.status)")
+        }
         let updated = job.failed(
-            status: data["status"] as? String ?? "failed",
+            status: status,
             error: data["error"] as? String ?? "Job failed"
         )
         jobs[jobId] = updated
