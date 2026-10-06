@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Capacitor
 
 @objc(CapacitorRESTPlugin)
@@ -21,6 +22,26 @@ public class CapacitorRESTPlugin: CAPPlugin, CAPBridgedPlugin, RestServerBridge 
         CAPPluginMethod(name: "mockRequest", returnType: CAPPluginReturnPromise)
     ]
     private lazy var implementation = CapacitorREST(bridge: self)
+    private var foregroundObserver: NSObjectProtocol?
+
+    override public func load() {
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.implementation.reconcileAfterForeground()
+        }
+    }
+
+    deinit {
+        if let foregroundObserver {
+            NotificationCenter.default.removeObserver(foregroundObserver)
+        }
+        // The server's connection handlers keep it alive on their own, so without this the
+        // listening socket and its threads would outlive the bridge.
+        implementation.stop()
+    }
 
     @objc func start(_ call: CAPPluginCall) {
         do {

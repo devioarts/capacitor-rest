@@ -13,21 +13,8 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.net.Inet4Address
 import java.net.NetworkInterface
-import java.net.ServerSocket
 import java.security.MessageDigest
 import java.time.Instant
-
-internal fun ServerOptions.withResolvedPort(): ServerOptions {
-    if (port != 0) {
-        return this
-    }
-    return copy(port = findAvailablePort())
-}
-
-internal fun findAvailablePort(): Int =
-    ServerSocket(0).use { socket ->
-        socket.localPort
-    }
 
 /**
  * Resolves the `Access-Control-Allow-Origin` value for a request, or `null` if the request's

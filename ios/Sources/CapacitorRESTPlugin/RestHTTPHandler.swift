@@ -16,6 +16,10 @@ final class RestHTTPHandler: ChannelInboundHandler {
     private var body = ByteBufferAllocator().buffer(capacity: 0)
     private var bodyTooLarge = false
     private var idleTask: Scheduled<Void>?
+    // Set once the whole request has been read. From then on the connection is waiting for the
+    // JS handler's answer, which has its own (per-route) timeout, so the idle timer must no
+    // longer run - otherwise it would cut off any response slower than `idleTimeout`.
+    private var requestComplete = false
 
     init(server: CapacitorREST) {
         self.server = server
@@ -33,7 +37,9 @@ final class RestHTTPHandler: ChannelInboundHandler {
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         idleTask?.cancel()
-        scheduleIdleTimeout(context: context)
+        if !requestComplete {
+            scheduleIdleTimeout(context: context)
+        }
         switch unwrapInboundIn(data) {
         case .head(let head):
             self.head = head
@@ -51,6 +57,8 @@ final class RestHTTPHandler: ChannelInboundHandler {
             }
             body.writeBuffer(&part)
         case .end:
+            idleTask?.cancel()
+            requestComplete = true
             if bodyTooLarge {
                 return
             }
@@ -80,15 +88,17 @@ final class RestHTTPHandler: ChannelInboundHandler {
         idleTask?.cancel()
         var headers = HTTPHeaders()
         payload.headers.forEach { key, value in
-            headers.add(name: key, value: "\(value)")
+            let text = "\(value)"
+            // Content-Length is always computed from the real body (a handler-supplied value
+            // could disagree with it; Android drops it too). Names/values containing CR or LF
+            // would let a handler split the response, so they are skipped.
+            if key.lowercased() == "content-length" || [key, text].contains(where: { $0.contains("\r") || $0.contains("\n") }) {
+                return
+            }
+            headers.add(name: key, value: text)
         }
         let bytes = payload.bodyBytes()
-        // Guard both headers the same way: if the handler already supplied its own value,
-        // adding the computed one too would produce two conflicting header lines (HTTPHeaders
-        // permits duplicate names), which is invalid per RFC 7230 §3.3.2 for Content-Length.
-        if headers.first(name: "content-length") == nil {
-            headers.add(name: "content-length", value: "\(bytes.count)")
-        }
+        headers.add(name: "content-length", value: "\(bytes.count)")
         if headers.first(name: "content-type") == nil, let contentType = payload.contentType {
             headers.add(name: "content-type", value: contentType)
         }

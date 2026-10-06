@@ -106,6 +106,9 @@ For more React examples, including hooks, async jobs, protected routes, uploads,
 - Prefer `mode: 'async'` for slow work. The HTTP client receives `202 Accepted` immediately and can poll `GET /__jobs/:jobId`.
 - On Electron, the HTTP server uses Node's asynchronous networking and waits for renderer responses without busy-waiting. Keep CPU-heavy work out of the Electron main process; run it in the renderer, a worker, or a separate process, then complete the route with `respond()` or `completeJob()`.
 - Register routes and attach `handleRequests()` before `start()` so the socket is not reachable before your handler is ready. After a WebView reload, attach a fresh handler and re-register/replace routes before exposing the server again.
+- Mobile apps only serve requests while the app is running in the foreground. Android stops the server together with the Activity (there is no foreground service), and iOS may close the listening socket while the app is suspended - after returning to the foreground the plugin emits an `error` event and `getInfo().running` becomes `false`, so call `start()` again. Plan for clients to retry.
+- A job that has already completed, failed, been cancelled or expired cannot be completed or failed again (`completeJob()`/`failJob()` reject). `failJob()` only accepts the statuses `failed` and `cancelled`.
+- `stop()` answers in-flight synchronous requests with `503` and closes connections that are still busy after a short grace period.
 
 For Electron, import the desktop adapter from the secondary export and register it with your Electron Capacitor setup:
 

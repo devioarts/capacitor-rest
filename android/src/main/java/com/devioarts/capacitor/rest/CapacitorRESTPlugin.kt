@@ -36,17 +36,28 @@ class CapacitorRESTPlugin : Plugin(), RestServerBridge {
 
     @PluginMethod
     fun start(call: PluginCall) {
-        try {
-            call.resolve(implementation.start(call.data))
-        } catch (error: Exception) {
-            call.reject(error.message, error)
+        // start()/stop() can block for seconds. Capacitor runs every plugin call on one shared
+        // handler thread, so blocking it would also stall respond()/completeJob() - the very
+        // calls an in-flight request needs in order to finish.
+        pluginScope.launch {
+            try {
+                call.resolve(implementation.start(call.data))
+            } catch (error: Exception) {
+                call.reject(error.message, error)
+            }
         }
     }
 
     @PluginMethod
     fun stop(call: PluginCall) {
-        implementation.stop()
-        call.resolve()
+        pluginScope.launch {
+            try {
+                implementation.stop()
+                call.resolve()
+            } catch (error: Exception) {
+                call.reject(error.message, error)
+            }
+        }
     }
 
     @PluginMethod

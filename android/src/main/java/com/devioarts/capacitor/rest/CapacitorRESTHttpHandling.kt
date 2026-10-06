@@ -13,7 +13,9 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import java.io.ByteArrayOutputStream
 import java.util.UUID
@@ -78,7 +80,7 @@ internal suspend fun CapacitorREST.handleHttpCall(call: ApplicationCall) {
         respondPayload(call, response)
     } catch (error: BodyTooLargeException) {
         respondPayload(call, ResponsePayload(413, bodyType = "json", body = JSObject().put("error", error.message)))
-    } catch (error: kotlinx.coroutines.CancellationException) {
+    } catch (error: CancellationException) {
         // CancellationException is a subtype of Exception, so it would otherwise be caught by
         // the generic handler below and treated as a request error (attempting to write a
         // response on a connection Ktor is already tearing down). Rethrowing preserves
@@ -102,9 +104,14 @@ internal suspend fun CapacitorREST.waitForJsResponse(
         withTimeout(timeoutMs) {
             deferred.await()
         }
-    } catch (error: Exception) {
+    } catch (error: TimeoutCancellationException) {
         pending.remove(requestId)
         ResponsePayload(504, bodyType = "json", body = JSObject().put("error", "Request $requestId timed out"))
+    } catch (error: CancellationException) {
+        // The call itself was cancelled (client disconnected / server stopping): clean up and
+        // let the cancellation propagate instead of pretending the request timed out.
+        pending.remove(requestId)
+        throw error
     }
 }
 

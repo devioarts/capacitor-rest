@@ -4,6 +4,8 @@ export declare function matchRoute(routes: Map<string, RouteRecord>, method: Res
     route: RouteRecord;
     params: Record<string, string>;
 } | undefined;
+/** Like requireJob(), but also rejects jobs that already reached a terminal state. */
+export declare function requireOpenJob(jobs: Map<string, JobInfo>, jobId: string): JobInfo;
 export declare function requireJob(jobs: Map<string, JobInfo>, jobId: string): JobInfo;
 /**
  * Evicts the oldest terminal-state jobs (never `queued`/`running`) once the retained job

@@ -10,6 +10,8 @@ const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_JOB_RETENTION_MS = 300000;
 const DEFAULT_MAX_BODY_SIZE_BYTES = 10 * 1024 * 1024;
 const DEFAULT_MAX_RETAINED_JOBS = 1000;
+/** How long stop() lets busy connections finish before closing them forcibly. */
+const STOP_GRACE_MS = 1000;
 const TERMINAL_JOB_STATUSES = new Set(['completed', 'failed', 'cancelled', 'expired']);
 /**
  * Distinguishes an explicit `stop()` call from a genuine request timeout so a pending
@@ -267,8 +269,13 @@ function safeJsonParse(text) {
 }
 function writeResponse(response, restResponse) {
     response.statusCode = restResponse.status;
-    for (const [key, value] of Object.entries(restResponse.headers ?? {}))
+    for (const [key, value] of Object.entries(restResponse.headers ?? {})) {
+        // Node computes the real Content-Length from the body; a handler-supplied value could
+        // disagree with it (Android drops it as well).
+        if (key.toLowerCase() === 'content-length')
+            continue;
         response.setHeader(key, value);
+    }
     if (restResponse.bodyType === 'empty' || restResponse.body === undefined || restResponse.body === null) {
         response.end();
         return;
@@ -302,6 +309,14 @@ function requireJob(jobs, jobId) {
     const job = jobs.get(jobId);
     if (!job)
         throw new Error(`Job ${jobId} was not found`);
+    return job;
+}
+/** Like requireJob(), but also rejects jobs that already reached a terminal state. */
+function requireOpenJob(jobs, jobId) {
+    const job = requireJob(jobs, jobId);
+    if (job.status !== 'queued' && job.status !== 'running') {
+        throw new Error(`Job ${jobId} is already ${job.status}`);
+    }
     return job;
 }
 function authorize(auth, headers) {
@@ -345,20 +360,24 @@ function trySystemRoute(jobs, method, path, searchParams) {
 
 class CapacitorREST {
     constructor() {
-        this.webContents = null;
-        this.listenerCounts = new Map();
+        // Listener counts are tracked per WebContents: with several windows each one registers its
+        // own listeners, and a renderer reload (which does not destroy the WebContents) drops all of
+        // its JS listeners without sending any `event-remove-*` message.
+        this.listeners = new Map();
         this.routes = new Map();
         this.pending = new Map();
         this.jobs = new Map();
         electron.ipcMain.on('event-add-CapacitorREST', (event, type) => {
-            this.attachWebContents(event.sender);
+            const counts = this.attachWebContents(event.sender);
             const eventType = String(type);
-            this.listenerCounts.set(eventType, (this.listenerCounts.get(eventType) ?? 0) + 1);
+            counts.set(eventType, (counts.get(eventType) ?? 0) + 1);
         });
         for (const eventName of ['request', 'started', 'stopped', 'error', 'jobUpdated']) {
-            electron.ipcMain.on(`event-remove-CapacitorREST-${eventName}`, () => {
-                const count = (this.listenerCounts.get(eventName) ?? 1) - 1;
-                this.listenerCounts.set(eventName, Math.max(0, count));
+            electron.ipcMain.on(`event-remove-CapacitorREST-${eventName}`, (event) => {
+                const counts = this.listeners.get(event.sender);
+                if (!counts)
+                    return;
+                counts.set(eventName, Math.max(0, (counts.get(eventName) ?? 1) - 1));
             });
         }
     }
@@ -383,7 +402,7 @@ class CapacitorREST {
             maxBodySizeBytes: options.maxBodySizeBytes ?? DEFAULT_MAX_BODY_SIZE_BYTES,
             maxRetainedJobs: options.maxRetainedJobs ?? DEFAULT_MAX_RETAINED_JOBS,
         };
-        this.server = node_http.createServer((request, response) => {
+        const server = node_http.createServer((request, response) => {
             // Without these, a client aborting mid-request (or another socket-level failure) emits
             // an unhandled 'error' event on the request/response, which Node turns into an uncaught
             // exception - risking a crash of the whole Electron main process rather than just this
@@ -404,8 +423,18 @@ class CapacitorREST {
             });
         });
         await new Promise((resolve, reject) => {
-            this.server?.once('error', reject);
-            this.server?.listen(this.options?.port, this.options?.host, () => resolve());
+            const onListenError = (error) => reject(error);
+            server.once('error', onListenError);
+            server.listen(this.options?.port, this.options?.host, () => {
+                server.off('error', onListenError);
+                resolve();
+            });
+        });
+        // Only publish the server once it is really listening, so a failed start() (e.g.
+        // EADDRINUSE) never leaves getInfo() reporting `running: true`.
+        this.server = server;
+        server.on('error', (error) => {
+            this.emit('error', { message: error.message });
         });
         const info = await this.getInfo();
         this.emit('started', { info });
@@ -425,7 +454,11 @@ class CapacitorREST {
         const server = this.server;
         this.server = undefined;
         if (server) {
-            await new Promise((resolve, reject) => {
+            // close() only resolves once every connection has ended. Idle keep-alive connections are
+            // dropped immediately; connections still busy (e.g. a slow upload) get a short grace
+            // period to finish writing their 503 and are then closed forcibly, so stop() can never
+            // hang on a single stuck client.
+            const closed = new Promise((resolve, reject) => {
                 server.close((error) => {
                     if (error)
                         reject(error);
@@ -433,6 +466,14 @@ class CapacitorREST {
                         resolve();
                 });
             });
+            server.closeIdleConnections();
+            const force = setTimeout(() => server.closeAllConnections(), STOP_GRACE_MS);
+            try {
+                await closed;
+            }
+            finally {
+                clearTimeout(force);
+            }
         }
         this.emit('stopped', { info: await this.getInfo() });
     }
@@ -469,12 +510,21 @@ class CapacitorREST {
         if (!pending) {
             throw new Error(`Request ${options.requestId} is not pending`);
         }
+        // Normalize first: if the response is malformed this throws while the request is still
+        // pending, so the caller can retry and the request is not left hanging with no timer.
+        let response;
+        try {
+            response = normalizeResponse(options);
+        }
+        catch (error) {
+            throw new Error(`Invalid response for request ${options.requestId}: ${error instanceof Error ? error.message : String(error)}`);
+        }
         clearTimeout(pending.timeout);
         this.pending.delete(options.requestId);
-        pending.resolve(normalizeResponse(options));
+        pending.resolve(response);
     }
     async completeJob(options) {
-        const job = requireJob(this.jobs, options.jobId);
+        const job = requireOpenJob(this.jobs, options.jobId);
         const updated = {
             ...job,
             status: 'completed',
@@ -487,7 +537,10 @@ class CapacitorREST {
         return updated;
     }
     async failJob(options) {
-        const job = requireJob(this.jobs, options.jobId);
+        const job = requireOpenJob(this.jobs, options.jobId);
+        if (options.status !== undefined && options.status !== 'failed' && options.status !== 'cancelled') {
+            throw new Error("status must be 'failed' or 'cancelled'");
+        }
         const updated = {
             ...job,
             status: options.status ?? 'failed',
@@ -531,7 +584,7 @@ class CapacitorREST {
         this.jobs.delete(options.jobId);
     }
     async mockRequest(options) {
-        if (!this.options) {
+        if (!this.server || !this.options) {
             throw new Error('Server is not running');
         }
         const method = normalizeMethod(options.method);
@@ -607,23 +660,29 @@ class CapacitorREST {
         }
     }
     attachWebContents(webContents) {
-        if (this.webContents === webContents)
-            return;
-        this.webContents = webContents;
+        const existing = this.listeners.get(webContents);
+        if (existing)
+            return existing;
+        const counts = new Map();
+        this.listeners.set(webContents, counts);
         webContents.once('destroyed', () => {
-            if (this.webContents === webContents) {
-                this.webContents = null;
-                this.listenerCounts.clear();
-            }
+            this.listeners.delete(webContents);
         });
+        // A main-frame navigation or reload discards the page's JS listeners without telling us,
+        // so forget the old counts - the new page registers its own via `event-add-*`.
+        webContents.on('did-navigate', () => {
+            counts.clear();
+        });
+        return counts;
     }
     emit(eventName, payload) {
-        if ((this.listenerCounts.get(eventName) ?? 0) <= 0)
-            return;
-        const webContents = this.webContents;
-        if (!webContents || webContents.isDestroyed())
-            return;
-        webContents.send(`event-CapacitorREST-${eventName}`, payload);
+        for (const [webContents, counts] of this.listeners) {
+            if ((counts.get(eventName) ?? 0) <= 0)
+                continue;
+            if (webContents.isDestroyed())
+                continue;
+            webContents.send(`event-CapacitorREST-${eventName}`, payload);
+        }
     }
     async handleHttpRequest(request, response) {
         if (request.method === 'OPTIONS') {
@@ -652,7 +711,7 @@ class CapacitorREST {
             request: { ...request, jobId },
         };
         this.jobs.set(jobId, job);
-        setTimeout(() => {
+        const expiryTimer = setTimeout(() => {
             const current = this.jobs.get(jobId);
             if (current && (current.status === 'queued' || current.status === 'running')) {
                 const updated = { ...current, status: 'expired', updatedAt: new Date().toISOString() };
@@ -661,6 +720,7 @@ class CapacitorREST {
                 this.emit('jobUpdated', { job: updated });
             }
         }, this.options?.jobRetentionMs ?? DEFAULT_JOB_RETENTION_MS);
+        expiryTimer.unref();
         return job;
     }
 }

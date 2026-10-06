@@ -290,6 +290,14 @@ var capacitorCapacitorREST = (function (exports, core) {
         }
         return undefined;
     }
+    /** Like requireJob(), but also rejects jobs that already reached a terminal state. */
+    function requireOpenJob(jobs, jobId) {
+        const job = requireJob(jobs, jobId);
+        if (job.status !== 'queued' && job.status !== 'running') {
+            throw new Error(`Job ${jobId} is already ${job.status}`);
+        }
+        return job;
+    }
     function requireJob(jobs, jobId) {
         const job = jobs.get(jobId);
         if (!job) {
@@ -437,7 +445,7 @@ var capacitorCapacitorREST = (function (exports, core) {
         async completeJob(options) {
             var _a;
             var _b;
-            const job = requireJob(this.jobs, options.jobId);
+            const job = requireOpenJob(this.jobs, options.jobId);
             const updated = Object.assign(Object.assign({}, job), { status: 'completed', response: normalizeResponse(options.response), updatedAt: new Date().toISOString() });
             this.jobs.set(options.jobId, updated);
             enforceJobRetentionCap(this.jobs, (_b = (_a = this.options) === null || _a === void 0 ? void 0 : _a.maxRetainedJobs) !== null && _b !== void 0 ? _b : DEFAULT_MAX_RETAINED_JOBS);
@@ -447,7 +455,10 @@ var capacitorCapacitorREST = (function (exports, core) {
         async failJob(options) {
             var _a;
             var _b, _c;
-            const job = requireJob(this.jobs, options.jobId);
+            const job = requireOpenJob(this.jobs, options.jobId);
+            if (options.status !== undefined && options.status !== 'failed' && options.status !== 'cancelled') {
+                throw new Error("status must be 'failed' or 'cancelled'");
+            }
             const updated = Object.assign(Object.assign({}, job), { status: (_b = options.status) !== null && _b !== void 0 ? _b : 'failed', error: options.error, updatedAt: new Date().toISOString() });
             this.jobs.set(options.jobId, updated);
             enforceJobRetentionCap(this.jobs, (_c = (_a = this.options) === null || _a === void 0 ? void 0 : _a.maxRetainedJobs) !== null && _c !== void 0 ? _c : DEFAULT_MAX_RETAINED_JOBS);

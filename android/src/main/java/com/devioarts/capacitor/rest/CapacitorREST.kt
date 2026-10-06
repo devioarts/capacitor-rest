@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -54,44 +55,79 @@ class CapacitorREST(internal val bridge: RestServerBridge) {
         this.context = context.applicationContext
     }
 
-    fun start(data: JSObject): JSObject {
-        if (server != null) {
-            stop()
-        }
+    // start()/stop() can block for seconds (Ktor's graceful shutdown) and must never interleave:
+    // two overlapping calls could otherwise leave a bound server that nothing references.
+    private val lifecycleLock = Any()
 
-        options = ServerOptions.from(data).withResolvedPort()
-        server =
-            embeddedServer(CIO, host = options.host, port = options.port) {
-                routing {
-                    get("{...}") { handleHttpCall(call) }
-                    post("{...}") { handleHttpCall(call) }
-                    put("{...}") { handleHttpCall(call) }
-                    patch("{...}") { handleHttpCall(call) }
-                    delete("{...}") { handleHttpCall(call) }
-                    head("{...}") { handleHttpCall(call) }
-                    options("{...}") { handleHttpCall(call) }
+    fun start(data: JSObject): JSObject =
+        synchronized(lifecycleLock) {
+            if (server != null) {
+                stopLocked()
+            }
+
+            val requested = ServerOptions.from(data)
+            options = requested
+            val engine =
+                embeddedServer(CIO, host = requested.host, port = requested.port) {
+                    routing {
+                        get("{...}") { handleHttpCall(call) }
+                        post("{...}") { handleHttpCall(call) }
+                        put("{...}") { handleHttpCall(call) }
+                        patch("{...}") { handleHttpCall(call) }
+                        delete("{...}") { handleHttpCall(call) }
+                        head("{...}") { handleHttpCall(call) }
+                        options("{...}") { handleHttpCall(call) }
+                    }
+                }.start(wait = false)
+
+            // Port 0 asks the OS for a free port. Read back the port the engine really bound to
+            // instead of probing for a free one beforehand, which could be taken in between.
+            val boundPort =
+                if (requested.port == 0) {
+                    runBlocking { engine.engine.resolvedConnectors().first().port }
+                } else {
+                    requested.port
                 }
-            }.start(wait = false)
+            options = requested.copy(port = boundPort)
+            server = engine
 
-        val info = getInfo()
-        bridge.emit("started", JSObject().put("info", info))
-        return info
-    }
+            val info = getInfo()
+            bridge.emit("started", JSObject().put("info", info))
+            info
+        }
 
     fun stop() {
+        synchronized(lifecycleLock) { stopLocked() }
+    }
+
+    private fun stopLocked() {
+        // Release in-flight sync requests (503) *before* stopping the engine: Ktor's graceful
+        // shutdown waits for running calls, and those calls only finish once their pending
+        // deferred is completed - doing it afterwards would stall every stop() for the full
+        // grace period.
+        failPendingRequests()
         server?.stop(1000, 3000)
         server = null
-        pending.forEach { (_, deferred) ->
-            deferred.complete(ResponsePayload(503, bodyType = "json", body = JSObject().put("error", "Server stopped")))
-        }
-        pending.clear()
+        failPendingRequests()
         bridge.emit("stopped", JSObject().put("info", getInfo()))
+    }
+
+    private fun failPendingRequests() {
+        for (requestId in pending.keys.toList()) {
+            pending.remove(requestId)?.complete(
+                ResponsePayload(503, bodyType = "json", body = JSObject().put("error", "Server stopped")),
+            )
+        }
     }
 
     fun dispose() {
         stop()
         jobScope.cancel()
         jobScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        // The expiry coroutines died with the old scope, so queued/running jobs would otherwise
+        // stay in that state forever; the JS side that could answer them is gone as well.
+        jobs.clear()
+        routes.clear()
     }
 
     fun getInfo(): JSObject {
@@ -149,6 +185,7 @@ class CapacitorREST(internal val bridge: RestServerBridge) {
         var updated: JobRecord? = null
         jobs.compute(jobId) { _, current ->
             val job = current ?: error("Job $jobId was not found")
+            requireOpen(job)
             job.copy(
                 status = "completed",
                 updatedAt = now(),
@@ -163,11 +200,16 @@ class CapacitorREST(internal val bridge: RestServerBridge) {
 
     fun failJob(data: JSObject): JSObject {
         val jobId = data.getString("jobId") ?: error("jobId is required")
+        val status = data.getString("status") ?: "failed"
+        if (status != "failed" && status != "cancelled") {
+            error("status must be 'failed' or 'cancelled'")
+        }
         var updated: JobRecord? = null
         jobs.compute(jobId) { _, current ->
             val job = current ?: error("Job $jobId was not found")
+            requireOpen(job)
             job.copy(
-                status = data.getString("status") ?: "failed",
+                status = status,
                 updatedAt = now(),
                 error = data.getString("error") ?: "Job failed",
             ).also { updated = it }
@@ -175,6 +217,12 @@ class CapacitorREST(internal val bridge: RestServerBridge) {
         enforceJobRetentionCap()
         emitJobUpdated(updated!!)
         return updated!!.toJSObject()
+    }
+
+    private fun requireOpen(job: JobRecord) {
+        if (job.status != "queued" && job.status != "running") {
+            error("Job ${job.jobId} is already ${job.status}")
+        }
     }
 
     fun getJob(data: JSObject): JSObject {

@@ -29,6 +29,15 @@ export function requireJob(jobs: Map<string, JobInfo>, jobId: string): JobInfo {
   return job;
 }
 
+/** Like requireJob(), but also rejects jobs that already reached a terminal state. */
+export function requireOpenJob(jobs: Map<string, JobInfo>, jobId: string): JobInfo {
+  const job = requireJob(jobs, jobId);
+  if (job.status !== 'queued' && job.status !== 'running') {
+    throw new Error(`Job ${jobId} is already ${job.status}`);
+  }
+  return job;
+}
+
 export function authorize(auth: AuthOptions | undefined, headers: Record<string, string>): RestResponse | undefined {
   if (auth?.type !== 'bearer') return undefined;
   // Real HTTP traffic is already lowercased by normalizeIncomingHeaders() before it reaches

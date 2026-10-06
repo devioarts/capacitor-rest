@@ -273,7 +273,12 @@ function safeJsonParse(text: string): unknown {
 
 export function writeResponse(response: ServerResponse, restResponse: RestResponse): void {
   response.statusCode = restResponse.status;
-  for (const [key, value] of Object.entries(restResponse.headers ?? {})) response.setHeader(key, value);
+  for (const [key, value] of Object.entries(restResponse.headers ?? {})) {
+    // Node computes the real Content-Length from the body; a handler-supplied value could
+    // disagree with it (Android drops it as well).
+    if (key.toLowerCase() === 'content-length') continue;
+    response.setHeader(key, value);
+  }
   if (restResponse.bodyType === 'empty' || restResponse.body === undefined || restResponse.body === null) {
     response.end();
     return;
