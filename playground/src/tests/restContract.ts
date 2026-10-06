@@ -310,7 +310,7 @@ export function buildRestContractTests(createDriver: RestSuiteDriverFactory): Te
         () =>
           driver.start({
             ...baseStartOptions(),
-            auth: { type: "baerer" } as StartOptions["auth"],
+            auth: { type: "baerer" } as unknown as StartOptions["auth"],
           }),
         "unknown auth.type should reject rather than silently disabling auth",
       );

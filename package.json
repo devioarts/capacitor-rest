@@ -63,7 +63,7 @@
     "test:ios": "DEVICE_ID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print $2; exit }') && xcodebuild test -scheme DevioartsCapacitorRest -destination \"id=$DEVICE_ID\" -quiet",
     "lint": "npm run eslint && npm run prettier -- --check && npm run swiftlint -- lint",
     "fmt": "npm run eslint -- --fix && npm run prettier -- --write && npm run swiftlint -- --fix --format",
-    "eslint": "eslint .",
+    "eslint": "npm --prefix lint install --no-audit --no-fund --silent && eslint .",
     "prettier": "prettier \"**/*.{css,html,ts,js,java}\" --plugin=prettier-plugin-java",
     "swiftlint": "node-swiftlint",
     "docgen": "docgen --api CapacitorRESTPlugin --output-readme README.md --output-json dist/docs.json",
@@ -90,7 +90,6 @@
     "rollup": "^4.62.0",
     "swiftlint": "^2.0.0",
     "typescript": "^7.0.0",
-    "typescript-eslint": "^8.0.0",
     "vitest": "^4.0.0"
   },
   "peerDependencies": {
